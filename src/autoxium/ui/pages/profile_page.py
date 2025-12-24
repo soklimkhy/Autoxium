@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QHBoxLayout,
 )
-from autoxium.ui.styles import COLORS
+from autoxium.ui.style import COLORS
 
 
 class ProfilePage(QWidget):

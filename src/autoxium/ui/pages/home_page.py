@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QHBoxLayout
 from PyQt6.QtCore import pyqtSignal
 from autoxium.ui.components.device_table import DeviceTable
-from autoxium.ui.styles import COLORS
+from autoxium.ui.style import COLORS
 
 
 class HomePage(QWidget):

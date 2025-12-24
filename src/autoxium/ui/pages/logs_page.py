@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
 from autoxium.ui.components.log_viewer import LogViewer
-from autoxium.ui.styles import COLORS
+from autoxium.ui.style import COLORS
 
 
 class LogsPage(QWidget):

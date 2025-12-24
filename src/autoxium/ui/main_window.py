@@ -7,13 +7,13 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QFileDialog,
 )
-from autoxium.ui.components.top_bar import TopBar
-from autoxium.ui.components.sidebar import Sidebar
+from autoxium.ui.layouts.top_bar import TopBar
+from autoxium.ui.layouts.left_sidebar import Sidebar
 from autoxium.ui.pages import HomePage, LogsPage, SettingsPage, ProfilePage
 from autoxium.core.device_monitor import DeviceMonitorWorker
 from autoxium.core.action_worker import ActionWorker
 from autoxium.core.adb_wrapper import adb
-from autoxium.ui.styles import COLORS
+from autoxium.ui.style import COLORS, theme_manager
 from autoxium.utils.logger import logger
 
 
@@ -22,7 +22,13 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Autoxium - Android Device Manager")
         self.setGeometry(100, 100, 1400, 900)
-        self.setStyleSheet(f"background-color: {COLORS['background']};")
+        self.update_theme()
+
+        # Connect theme change signal
+        theme_manager.theme_changed.connect(self.update_theme)
+
+    def update_theme(self, theme_name=None):
+        self.setStyleSheet(theme_manager.get_stylesheet())
 
         # Central widget
         central_widget = QWidget()
@@ -101,7 +107,7 @@ class MainWindow(QMainWindow):
             if not hasattr(self, "_mirror_windows"):
                 self._mirror_windows = {}
 
-            from autoxium.ui.mirror_window import MirrorWindow
+            from autoxium.ui.components.mirror_window import MirrorWindow
 
             mirror_win = MirrorWindow(serial)
             mirror_win.show()

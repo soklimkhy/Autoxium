@@ -3,10 +3,11 @@ name = "autoxium"
 version = "0.1.0"
 description = "A wrapper around external binaries like ADB and scrcpy for device management."
 authors = [
-    {name = "Your Name", email = "your.email@example.com"},
+    {name = "Soklyan", email = "soklyan@autoxium.com"},
 ]
 dependencies = [
     "PyQt6",  # User mentioned PyQt/PySide/Flet, picking PyQt6 as a safe default for modern desktop apps
+    "psutil", # Required by TopBar component
 ]
 requires-python = ">=3.10"
 
