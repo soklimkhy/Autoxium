@@ -27,20 +27,6 @@ class SettingsPage(QWidget):
         self.title = QLabel("Settings")
         layout.addWidget(self.title)
 
-        # Appearance Settings Group
-        self.appearance_group = QGroupBox("Appearance")
-        layout.addWidget(self.appearance_group)
-        
-        appearance_layout = QFormLayout(self.appearance_group)
-        appearance_layout.setSpacing(15)
-
-        # Theme Selector
-        self.theme_combo = QComboBox()
-        self.theme_combo.addItems(["Dark", "Light"])
-        self.theme_combo.setCurrentText(theme_manager.theme.capitalize())
-        self.theme_combo.currentTextChanged.connect(self._on_theme_changed)
-        appearance_layout.addRow("Theme:", self.theme_combo)
-
         # Display Settings Group
         self.display_group = QGroupBox("Display Settings")
         
@@ -79,11 +65,15 @@ class SettingsPage(QWidget):
         layout.addStretch()
 
         # Connect to theme manager
-        theme_manager.theme_changed.connect(lambda _: self.update_styles())
+        theme_manager.theme_changed.connect(self._on_theme_changed)
 
         # Initial style application
         self.update_styles()
 
+    def _on_theme_changed(self, _):
+        """Handle theme change signal from theme manager"""
+        self.update_styles()
+    
     def update_styles(self):
         c = theme_manager.colors
         
@@ -113,7 +103,6 @@ class SettingsPage(QWidget):
         """
         self.display_group.setStyleSheet(group_style)
         self.monitor_group.setStyleSheet(group_style)
-        self.appearance_group.setStyleSheet(group_style)
 
         # Inputs
         input_style = f"""
@@ -131,10 +120,8 @@ class SettingsPage(QWidget):
         """
         self.devices_per_row_spin.setStyleSheet(input_style)
         self.refresh_interval_spin.setStyleSheet(input_style)
-        self.theme_combo.setStyleSheet(input_style)
 
-    def _on_theme_changed(self, text):
-        theme_manager.set_theme(text.lower())
+
 
     def _on_settings_changed(self):
         settings = {

@@ -1,6 +1,6 @@
 import psutil
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel
-from PyQt6.QtCore import QTimer
+from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton
+from PyQt6.QtCore import QTimer, Qt
 from autoxium.ui.style import theme_manager
 
 
@@ -20,24 +20,24 @@ class TopBar(QWidget):
 
         layout.addStretch()
 
-        # System Metrics
-        self.cpu_label = self._create_metric_label("CPU: 0%")
-        self.ram_label = self._create_metric_label("RAM: 0%")
-        self.disk_label = self._create_metric_label("DISK: 0%")
-        self.gpu_label = self._create_metric_label("GPU: N/A")
+        # Theme Toggle Button
+        self.theme_toggle_btn = QPushButton()
+        self.theme_toggle_btn.setFixedSize(35, 35)
+        self.theme_toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.theme_toggle_btn.clicked.connect(self._toggle_theme)
+        layout.addWidget(self.theme_toggle_btn)
 
-        layout.addWidget(self.cpu_label)
-        layout.addWidget(self.ram_label)
-        layout.addWidget(self.disk_label)
-        layout.addWidget(self.gpu_label)
+        # System Metrics (combined)
+        self.metrics_label = self._create_metric_label("CPU/RAM/DISK/GPU: 0%/0%/0%/N/A")
+        layout.addWidget(self.metrics_label)
 
         # Update timer
-        self.timer = QTimer()
+        self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_metrics)
         self.timer.start(2000)  # Update every 2 seconds
 
         # Connect to theme manager
-        theme_manager.theme_changed.connect(lambda _: self.update_styles())
+        theme_manager.theme_changed.connect(self._on_theme_changed)
         
         # Initial style application
         self.update_styles()
@@ -61,6 +61,21 @@ class TopBar(QWidget):
             color: {c["primary"]};
         """)
 
+        # Theme toggle button
+        icon = "☀️" if theme_manager.theme == "dark" else "🌙"
+        self.theme_toggle_btn.setText(icon)
+        self.theme_toggle_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {c["background"]};
+                border: 1px solid {c["border"]};
+                border-radius: 5px;
+                font-size: 16px;
+            }}
+            QPushButton:hover {{
+                background-color: {c["border"]};
+            }}
+        """)
+
         # Update metric labels (resetting base style)
         # Note: _update_color is called frequently by timer, so we rely on that for dynamic coloring
         # but we force an update now to catch theme background changes immediately
@@ -74,24 +89,26 @@ class TopBar(QWidget):
     def update_metrics(self):
         # CPU
         cpu_percent = psutil.cpu_percent(interval=0.1)
-        self.cpu_label.setText(f"CPU: {cpu_percent:.1f}%")
-        self._update_color(self.cpu_label, cpu_percent)
 
         # RAM
         ram = psutil.virtual_memory()
         ram_percent = ram.percent
-        self.ram_label.setText(f"RAM: {ram_percent:.1f}%")
-        self._update_color(self.ram_label, ram_percent)
 
         # Disk
         disk = psutil.disk_usage("/")
         disk_percent = disk.percent
-        self.disk_label.setText(f"DISK: {disk_percent:.1f}%")
-        self._update_color(self.disk_label, disk_percent)
 
         # GPU - Basic placeholder (would need GPU library for real data)
-        self.gpu_label.setText("GPU: N/A")
-        self._update_color(self.gpu_label, 0) # Treat as low usage
+        gpu_text = "N/A"
+        
+        # Combined metrics display
+        self.metrics_label.setText(
+            f"CPU/RAM/DISK/GPU: {cpu_percent:.0f}%/{ram_percent:.0f}%/{disk_percent:.0f}%/{gpu_text}"
+        )
+        
+        # Use the highest percentage for color coding
+        max_percent = max(cpu_percent, ram_percent, disk_percent)
+        self._update_color(self.metrics_label, max_percent)
 
     def _update_color(self, label, percent):
         c = theme_manager.colors
@@ -110,3 +127,12 @@ class TopBar(QWidget):
             color: {color};
             font-weight: 600;
         """)
+    
+    def _on_theme_changed(self, _):
+        """Handle theme change signal from theme manager"""
+        self.update_styles()
+    
+    def _toggle_theme(self):
+        """Toggle between light and dark theme"""
+        new_theme = "light" if theme_manager.theme == "dark" else "dark"
+        theme_manager.set_theme(new_theme)
