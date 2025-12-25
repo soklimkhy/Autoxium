@@ -1,6 +1,6 @@
 import psutil
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QPushButton
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer, Qt
 from autoxium.ui.style import theme_manager
 
 
@@ -23,6 +23,7 @@ class TopBar(QWidget):
         # Theme Toggle Button
         self.theme_toggle_btn = QPushButton()
         self.theme_toggle_btn.setFixedSize(35, 35)
+        self.theme_toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.theme_toggle_btn.clicked.connect(self._toggle_theme)
         layout.addWidget(self.theme_toggle_btn)
 
