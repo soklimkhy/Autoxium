@@ -48,24 +48,17 @@ class ADBWrapper:
                 raw_status = parts[1]
                 status = "Online" if raw_status == "device" else "Offline"
 
-                model = ""
-                product = ""
-                device_name = ""
-
-                for part in parts[2:]:
-                    if part.startswith("model:"):
-                        model = part.split(":")[1]
-                    elif part.startswith("product:"):
-                        product = part.split(":")[1]
-                    elif part.startswith("device:"):
-                        device_name = part.split(":")[1]
-
+                product_name = ""
+                model_name = ""
                 android_version = ""
                 resolution = ""
 
                 # Only fetch details if online to avoid hanging on offline devices
                 if status == "Online":
-                    # We can optimize this later by caching based on serial
+                    # Get Product Name (marketing name like "Galaxy A72", "Pixel 7")
+                    product_name = self.get_product_name(serial)
+                    # Get Model Name (model number like "SM-A725F/DS", "SM-S918U/DS")
+                    model_name = self.get_model_name(serial)
                     android_version = self.get_android_version(serial)
                     resolution = self.get_screen_resolution(serial)
 
@@ -73,14 +66,120 @@ class ADBWrapper:
                     Device(
                         serial=serial,
                         status=status,
-                        model=model,
-                        product=product,
-                        device_name=device_name,
+                        model=model_name,
+                        product=product_name,
+                        device_name="",  # Deprecated, keeping for compatibility
                         android_version=android_version,
                         resolution=resolution,
                     )
                 )
         return devices
+
+    def get_product_name(self, serial: str) -> str:
+        """Get the marketing/commercial product name (e.g., 'Galaxy A72', 'Pixel 7')"""
+        from autoxium.utils.device_names import get_marketing_name
+        
+        # Get manufacturer to determine which properties to check
+        manufacturer = self.shell_command(serial, "getprop ro.product.manufacturer").lower()
+        
+        # Get model number
+        model_number = self.shell_command(serial, "getprop ro.product.model")
+        
+        # Try manufacturer-specific properties first
+        marketing_name = ""
+        
+        if manufacturer == "samsung":
+            # Samsung uses ro.product.marketname or we use our database
+            marketing_name = self.shell_command(serial, "getprop ro.product.marketname")
+            if not marketing_name:
+                marketing_name = self.shell_command(serial, "getprop ro.product.vendor.marketname")
+        
+        elif manufacturer == "google":
+            # Google Pixel: ro.product.model already contains marketing name
+            marketing_name = model_number
+        
+        elif manufacturer in ["xiaomi", "redmi"]:
+            # Xiaomi sometimes has marketname
+            marketing_name = self.shell_command(serial, "getprop ro.product.marketname")
+            if not marketing_name:
+                marketing_name = self.shell_command(serial, "getprop ro.product.mod_device")
+        
+        elif manufacturer == "huawei" or manufacturer == "honor":
+            # Huawei/Honor
+            marketing_name = self.shell_command(serial, "getprop ro.config.marketing_name")
+            if not marketing_name:
+                marketing_name = self.shell_command(serial, "getprop ro.product.marketname")
+        
+        elif manufacturer == "oneplus":
+            # OnePlus
+            marketing_name = self.shell_command(serial, "getprop ro.display.series")
+            if not marketing_name:
+                marketing_name = self.shell_command(serial, "getprop ro.product.marketname")
+        
+        else:
+            # Generic fallback for other manufacturers
+            marketing_name = self.shell_command(serial, "getprop ro.product.marketname")
+            if not marketing_name:
+                marketing_name = self.shell_command(serial, "getprop ro.product.vendor.marketname")
+            if not marketing_name:
+                marketing_name = self.shell_command(serial, "getprop ro.config.marketing_name")
+        
+        # If we found a marketing name in properties and it's different from model number, use it
+        if marketing_name and marketing_name.strip() and marketing_name != model_number:
+            return marketing_name.strip()
+        
+        # Otherwise, use our mapping database
+        product_name = get_marketing_name(model_number, manufacturer)
+        
+        return product_name.strip()
+
+    def get_model_name(self, serial: str) -> str:
+        """Get the model number (e.g., 'SM-A725F/DS', 'SM-S918U/DS', 'G-2PW4100')"""
+        # Get manufacturer to determine which properties to check
+        manufacturer = self.shell_command(serial, "getprop ro.product.manufacturer").lower()
+        
+        model_name = ""
+        
+        if manufacturer == "samsung":
+            # Samsung: ro.product.model contains the model number (SM-XXXXX)
+            model_name = self.shell_command(serial, "getprop ro.product.model")
+        
+        elif manufacturer == "google":
+            # Google Pixel: Use device codename or build product
+            # ro.product.model = "Pixel 7" (marketing name)
+            # ro.product.name = "panther" (codename)
+            # We'll use the codename as the "model"
+            model_name = self.shell_command(serial, "getprop ro.product.name")
+            
+            # Fallback to device if name is empty
+            if not model_name or len(model_name) < 3:
+                model_name = self.shell_command(serial, "getprop ro.product.device")
+        
+        elif manufacturer in ["xiaomi", "redmi"]:
+            # Xiaomi: ro.product.model contains model code
+            model_name = self.shell_command(serial, "getprop ro.product.model")
+            if not model_name:
+                model_name = self.shell_command(serial, "getprop ro.product.vendor.model")
+        
+        elif manufacturer == "huawei" or manufacturer == "honor":
+            # Huawei/Honor
+            model_name = self.shell_command(serial, "getprop ro.product.model")
+        
+        elif manufacturer == "oneplus":
+            # OnePlus
+            model_name = self.shell_command(serial, "getprop ro.product.model")
+        
+        else:
+            # Generic: try ro.product.model first
+            model_name = self.shell_command(serial, "getprop ro.product.model")
+            
+            # If it looks like a marketing name, try other properties
+            if model_name and not any(c in model_name for c in ['-', '_']) and ' ' in model_name:
+                alt_model = self.shell_command(serial, "getprop ro.product.name")
+                if alt_model:
+                    model_name = alt_model
+        
+        return model_name.strip()
 
     def get_android_version(self, serial: str) -> str:
         return self.shell_command(serial, "getprop ro.build.version.release")

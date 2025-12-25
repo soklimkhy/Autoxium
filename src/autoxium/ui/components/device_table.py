@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QBrush
 from autoxium.models.device import Device
+from autoxium.ui.style import theme_manager
 from typing import List
 
 
@@ -18,12 +19,12 @@ class DeviceTable(QTableWidget):
 
     def __init__(self):
         super().__init__()
-        # Columns: No, Serial Number, Model, Device Name, Android Version, Resolution, Status
+        # Columns: No, Serial Number, Product Name, Model Name, Android Version, Resolution, Status
         headers = [
             "No",
             "Serial Number",
-            "Model",
-            "Device Name",
+            "Product Name",
+            "Model Name",
             "Android Version",
             "Resolution",
             "Status",
@@ -43,11 +44,71 @@ class DeviceTable(QTableWidget):
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.verticalHeader().setVisible(False)
         self.setShowGrid(False)
-        self.setAlternatingRowColors(True)
+        self.setAlternatingRowColors(False)  # Disabled alternating colors
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)  # Remove focus outline
+
+        # Apply custom stylesheet
+        self.update_styles()
+        
+        # Connect to theme changes
+        theme_manager.theme_changed.connect(self._on_theme_changed)
 
         self.itemSelectionChanged.connect(self._on_selection_change)
 
         self.devices: List[Device] = []
+
+    def _on_theme_changed(self, _):
+        """Handle theme change signal from theme manager"""
+        self.update_styles()
+    
+    def update_styles(self):
+        """Update table styles based on current theme"""
+        c = theme_manager.colors
+        
+        self.setStyleSheet(f"""
+            QTableWidget {{
+                background-color: {c["surface"]};
+                border: 1px solid {c["border"]};
+                gridline-color: {c["border"]};
+                selection-background-color: {c["primary"]};
+                selection-color: white;
+                border-radius: 4px;
+                outline: none;
+            }}
+            
+            QTableWidget::item {{
+                padding: 5px;
+                outline: none;
+                border: none;
+            }}
+            
+            QTableWidget::item:selected {{
+                background-color: {c["primary"]};
+                color: white;
+                outline: none;
+            }}
+            
+            QTableWidget::item:focus {{
+                outline: none;
+                border: none;
+            }}
+            
+            QHeaderView::section {{
+                background-color: {c["surface_hover"]};
+                padding: 6px;
+                border: none;
+                border-bottom: 2px solid {c["border"]};
+                font-weight: bold;
+                color: {c["text"]};
+                outline: none;
+            }}
+            
+            QTableWidget QTableCornerButton::section {{
+                background-color: {c["surface_hover"]};
+                border: none;
+                outline: none;
+            }}
+        """)
 
     def update_devices(self, devices: List[Device]):
         """Updates the table with a list of Device objects."""
@@ -70,11 +131,11 @@ class DeviceTable(QTableWidget):
             serial_item.setData(Qt.ItemDataRole.UserRole, device)
             self.setItem(row, 1, serial_item)
 
-            # Model
-            self.setItem(row, 2, QTableWidgetItem(device.model))
+            # Product Name (marketing name like "Galaxy A72", "Pixel 7")
+            self.setItem(row, 2, QTableWidgetItem(device.product))
 
-            # Device Name
-            self.setItem(row, 3, QTableWidgetItem(device.device_name))
+            # Model Name (model number like "SM-A725F/DS")
+            self.setItem(row, 3, QTableWidgetItem(device.model))
 
             # Android Version
             self.setItem(row, 4, QTableWidgetItem(device.android_version))
