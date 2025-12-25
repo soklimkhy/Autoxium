@@ -51,12 +51,16 @@ class DeviceTable(QTableWidget):
         self.update_styles()
         
         # Connect to theme changes
-        theme_manager.theme_changed.connect(lambda _: self.update_styles())
+        theme_manager.theme_changed.connect(self._on_theme_changed)
 
         self.itemSelectionChanged.connect(self._on_selection_change)
 
         self.devices: List[Device] = []
 
+    def _on_theme_changed(self, _):
+        """Handle theme change signal from theme manager"""
+        self.update_styles()
+    
     def update_styles(self):
         """Update table styles based on current theme"""
         c = theme_manager.colors

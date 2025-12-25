@@ -35,7 +35,7 @@ class Sidebar(QWidget):
         layout.addStretch()
 
         # Connect to theme manager
-        theme_manager.theme_changed.connect(lambda _: self.update_styles())
+        theme_manager.theme_changed.connect(self._on_theme_changed)
 
         # Set default active
         self.set_active_page("home")
@@ -43,6 +43,10 @@ class Sidebar(QWidget):
         # Initial style application
         self.update_styles()
 
+    def _on_theme_changed(self, _):
+        """Handle theme change signal from theme manager"""
+        self.update_styles()
+    
     def update_styles(self):
         c = theme_manager.colors
         
