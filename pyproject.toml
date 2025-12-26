@@ -7,7 +7,6 @@ authors = [
 ]
 dependencies = [
     "PyQt6",  # User mentioned PyQt/PySide/Flet, picking PyQt6 as a safe default for modern desktop apps
-    "psutil", # Required by TopBar component
 ]
 requires-python = ">=3.10"
 

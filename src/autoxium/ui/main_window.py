@@ -1,5 +1,4 @@
 from PyQt6.QtWidgets import (
-    QMainWindow,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
@@ -7,39 +6,34 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QFileDialog,
 )
-from autoxium.ui.layouts.top_bar import TopBar
-from autoxium.ui.layouts.left_sidebar import Sidebar
+from autoxium.ui.components.top_bar import TopBar
+from autoxium.ui.components.sidebar import Sidebar
 from autoxium.ui.pages import HomePage, LogsPage, SettingsPage, ProfilePage
 from autoxium.core.device_monitor import DeviceMonitorWorker
 from autoxium.core.action_worker import ActionWorker
 from autoxium.core.adb_wrapper import adb
-from autoxium.ui.style import COLORS, theme_manager
+from autoxium.ui.styles import COLORS
 from autoxium.utils.logger import logger
 
 
-class MainWindow(QMainWindow):
+class MainWindow(FramelessMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Autoxium - Android Device Manager")
         self.setGeometry(100, 100, 1400, 900)
-        self.update_theme()
-
-        # Connect theme change signal
-        theme_manager.theme_changed.connect(self.update_theme)
-
-    def update_theme(self, theme_name=None):
-        self.setStyleSheet(theme_manager.get_stylesheet())
+        self.setStyleSheet(f"background-color: {COLORS['background']};")
 
         # Central widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-        # Main layout (vertical: top bar + content)
+        # Main layout
         main_layout = QVBoxLayout(central_widget)
-        main_layout.setContentsMargins(0, 0, 0, 0)
+        # Add top margin (32px) to account for the frameless title bar overlay
+        main_layout.setContentsMargins(0, 32, 0, 0)
         main_layout.setSpacing(0)
 
-        # Top bar
+        # Top Bar (Row 2) - Standard mode
         self.top_bar = TopBar()
         main_layout.addWidget(self.top_bar)
 
@@ -90,6 +84,43 @@ class MainWindow(QMainWindow):
 
         # Show home page by default
         self.switch_page("home")
+
+    def update_theme(self, theme_name=None):
+        """Update styles when theme changes (without recreating UI)"""
+        # Update mica effect based on theme
+        if hasattr(self, "windowEffect"):
+            self.windowEffect.setMicaEffect(
+                self.winId(), isDarkMode=theme_manager.theme == "dark"
+            )
+
+        self.setStyleSheet(theme_manager.get_stylesheet())
+
+        # Update Title Bar Style
+        c = theme_manager.colors
+        if hasattr(self, "title_bar_widget"):
+            # Background
+            self.title_bar_widget.setStyleSheet(f"""
+                StandardTitleBar {{
+                    background-color: {c["surface"]};
+                    border-bottom: 1px solid {c["border"]};
+                }}
+            """)
+
+            # Icons
+            is_dark = theme_manager.theme == "dark"
+            icon_color = Qt.GlobalColor.white if is_dark else Qt.GlobalColor.black
+
+            self.title_bar_widget.minBtn.setNormalColor(icon_color)
+            self.title_bar_widget.minBtn.setPressedColor(icon_color)
+
+            self.title_bar_widget.maxBtn.setNormalColor(icon_color)
+            self.title_bar_widget.maxBtn.setPressedColor(icon_color)
+
+            self.title_bar_widget.closeBtn.setNormalColor(icon_color)
+            self.title_bar_widget.closeBtn.setPressedColor(Qt.GlobalColor.white)
+
+            # Ensure title bar is on top
+            self.title_bar_widget.raise_()
 
     def switch_page(self, page_name):
         if page_name in self.pages:
@@ -174,14 +205,14 @@ class MainWindow(QMainWindow):
             self.monitor_worker.set_interval(interval_ms)
 
     def closeEvent(self, event):
+        # Stop TopBar timer
+        if hasattr(self, "top_bar"):
+            self.top_bar.timer.stop()
+
         # Stop monitoring
         if hasattr(self, "monitor_worker"):
             self.monitor_worker.stop()
             self.monitor_worker.wait()
-
-        # Stop top bar timer
-        if hasattr(self, "top_bar"):
-            self.top_bar.timer.stop()
 
         logger.info("Application closed")
         event.accept()
